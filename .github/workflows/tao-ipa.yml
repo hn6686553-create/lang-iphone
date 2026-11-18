@@ -1,0 +1,50 @@
+name: Tạo IPA Lặng
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: "Bundle ID chính đã đăng ký cho Lặng"
+        required: true
+        type: string
+      app_group:
+        description: "App Group đã đăng ký (để trống nếu là group.<Bundle ID>)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-ipa]')
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Biên dịch cho iPhone
+        shell: bash
+        env:
+          BUNDLE_ID: ${{ inputs.bundle_id || vars.LANG_BUNDLE_ID || 'io.github.hn6686553-create.lang' }}
+          APP_GROUP: ${{ inputs.app_group || vars.LANG_APP_GROUP }}
+        run: |
+          set -euo pipefail
+          if [[ -f Build/build_ipa.py ]]; then
+            source_dir="$GITHUB_WORKSPACE"
+          elif [[ -f Lang/Build/build_ipa.py ]]; then
+            source_dir="$GITHUB_WORKSPACE/Lang"
+          else
+            unzip -q "$GITHUB_WORKSPACE/Lang-iPhone.zip" -d "$RUNNER_TEMP/lang-source"
+            source_dir="$RUNNER_TEMP/lang-source/Lang"
+          fi
+          python3 "$source_dir/Build/build_ipa.py" --bundle-id "$BUNDLE_ID" --app-group "$APP_GROUP" --output "$GITHUB_WORKSPACE/Lang.ipa"
+      - name: Tải IPA về iPhone
+        uses: actions/upload-artifact@v7
+        with:
+          path: Lang.ipa
+          archive: false
+          if-no-files-found: error
