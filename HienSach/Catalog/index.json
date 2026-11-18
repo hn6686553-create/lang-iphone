@@ -1,0 +1,16 @@
+[
+  {
+    "id": "mot-chuyen-pha",
+    "title": "Một chuyến phà",
+    "note": "Truyện ngắn · 2 chương",
+    "file": "mot-chuyen-pha.epub",
+    "sha256": "4d607b513bafe704aa1a13236cb6a48e9ac7d59f1daec47ea8674d8956fe3ff2"
+  },
+  {
+    "id": "nguoi-dong-sach",
+    "title": "Người đóng sách",
+    "note": "Ghi chép · 2 chương",
+    "file": "nguoi-dong-sach.epub",
+    "sha256": "26d571f39132c5d6e4c7f7b148a354754415183bf754652a8f0827328c70b98e"
+  }
+]
