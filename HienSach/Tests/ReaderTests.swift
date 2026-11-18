@@ -33,6 +33,14 @@ final class ReaderTests:XCTestCase{
         let content=try String(contentsOf:root.appendingPathComponent(b.id+"/content/"+b.chapters[0].file),encoding:.utf8)
         XCTAssertEqual(b.title,"Nắng");XCTAssertTrue(content.contains("&lt;hello&gt; &amp; lá"))
     }
+    func testDownloadAndOpenOnlineEPUB()async throws{
+        let items=try await OnlineShelf.catalog()
+        let item=try XCTUnwrap(items.first)
+        let (url,name)=try await BookDownload(OnlineShelf.base.appendingPathComponent(item.file)){ _ in }.run()
+        defer{try? FileManager.default.removeItem(at:url)}
+        let b=try BookImport.prepare(url,fileName:name,booksRoot:root)
+        XCTAssertEqual(b.id,item.sha256);XCTAssertEqual(b.title,item.title);XCTAssertGreaterThan(b.chapters.count,0)
+    }
     func testInvalidDownloadsAndPathEscape()throws{
         let p=root.appendingPathComponent("download.html");try "<html>error</html>".write(to:p,atomically:true,encoding:.utf8)
         XCTAssertThrowsError(try BookImport.prepare(p,fileName:"index.epub",booksRoot:root))

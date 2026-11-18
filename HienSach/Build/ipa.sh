@@ -7,7 +7,7 @@ xcodebuild -quiet -project HienSach.xcodeproj -scheme HienSach -configuration Re
 mkdir "$work/Payload"
 ditto "$work/build/Build/Products/Release-iphoneos/HienSach.app" "$work/Payload/HienSach.app"
 app="$work/Payload/HienSach.app"
-xcrun lipo -verify_arch arm64 "$app/HienSach"
+xcrun lipo "$app/HienSach" -verify_arch arm64
 if [[ -d "$app/Frameworks" ]]; then
   find "$app/Frameworks" -type d -name '*.framework' -exec codesign --force --sign - --timestamp=none {} \;
 fi

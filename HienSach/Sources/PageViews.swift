@@ -18,18 +18,22 @@ private func locationData(_ spot: ReadingSpot) -> [String:Any] {
 }
 private func turnAnimation(_ view:UIView, _ d:Int) {
     guard !UIAccessibility.isReduceMotionEnabled, view.window != nil,view.bounds.height>30 else { return }
-    // A paper edge travels across the live page. The actual page can remain selectable.
-    view.layer.sublayers?.first(where:{ $0.name=="hs.turn" })?.removeFromSuperlayer()
-    let edge=CAGradientLayer();edge.name="hs.turn"
-    edge.frame=CGRect(x:0,y:0,width:view.bounds.width*0.30,height:view.bounds.height)
-    edge.startPoint=CGPoint(x:0,y:0.5);edge.endPoint=CGPoint(x:1,y:0.5)
-    edge.colors=[UIColor.clear.cgColor,UIColor.brown.withAlphaComponent(0.18).cgColor,UIColor.white.withAlphaComponent(0.65).cgColor,UIColor.clear.cgColor]
-    let end=d>0 ? -edge.bounds.width : view.bounds.width+edge.bounds.width
-    let start=d>0 ? view.bounds.width+edge.bounds.width : -edge.bounds.width
-    edge.position.x=end;view.layer.addSublayer(edge)
-    let animation=CABasicAnimation(keyPath:"position.x");animation.fromValue=start;animation.toValue=end;animation.duration=0.30
-    animation.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut);edge.add(animation,forKey:"turn")
-    DispatchQueue.main.asyncAfter(deadline:.now()+0.33){edge.removeFromSuperlayer()}
+    let overlayTag=903721
+    view.viewWithTag(overlayTag)?.removeFromSuperview()
+    guard let snapshot=view.snapshotView(afterScreenUpdates:false) else{return}
+    let carrier=UIView()
+    carrier.tag=overlayTag;carrier.isUserInteractionEnabled=false;carrier.accessibilityElementsHidden=true
+    // Rotate the curl axis to turn across the spread; the contents remain upright.
+    carrier.bounds=CGRect(origin:.zero,size:CGSize(width:view.bounds.height,height:view.bounds.width))
+    carrier.center=CGPoint(x:view.bounds.midX,y:view.bounds.midY)
+    carrier.transform=CGAffineTransform(rotationAngle:.pi/2)
+    snapshot.bounds=view.bounds;snapshot.center=CGPoint(x:carrier.bounds.midX,y:carrier.bounds.midY)
+    snapshot.transform=CGAffineTransform(rotationAngle: -.pi/2)
+    carrier.addSubview(snapshot);view.addSubview(carrier)
+    let curl:UIView.AnimationOptions=d>0 ? .transitionCurlUp:.transitionCurlDown
+    UIView.transition(with:carrier,duration:0.40,options:[curl,.showHideTransitionViews,.allowUserInteraction],animations:{
+        snapshot.isHidden=true
+    },completion:{_ in carrier.removeFromSuperview()})
 }
 
 struct TextPages: UIViewRepresentable {
