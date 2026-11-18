@@ -1,0 +1,6 @@
+// Set the base identifier and the team once for all targets.
+// LANG_APP_GROUP must match the group registered for the app and its monitor.
+LANG_BUNDLE_BASE = io.github.hn6686553-create.lang
+LANG_APP_GROUP = group.$(LANG_BUNDLE_BASE)
+LANG_TEAM =
+DEVELOPMENT_TEAM = $(LANG_TEAM)
