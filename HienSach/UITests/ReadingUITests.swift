@@ -1,8 +1,11 @@
 import XCTest
 final class ReadingUITests:XCTestCase{
     override func setUp(){super.setUp();continueAfterFailure=false}
+    private func launch()->XCUIApplication{
+        let app=XCUIApplication();app.launchEnvironment["HIENSACH_UI_TEST"]=UUID().uuidString;app.launch();return app
+    }
     func testReadEPUBBookmarkSettingsAndRestore(){
-        let app=XCUIApplication();app.launch()
+        let app=launch()
         let cover=app.buttons["cover-Bên ô cửa"];XCTAssertTrue(cover.waitForExistence(timeout:25));cover.tap()
         let toc=app.buttons["contents"];XCTAssertTrue(toc.waitForExistence(timeout:7));toc.tap()
         let chapter=app.buttons["Một chỗ ngồi"];XCTAssertTrue(chapter.waitForExistence(timeout:6));chapter.tap()
@@ -24,7 +27,7 @@ final class ReadingUITests:XCTestCase{
         expectation(for:NSPredicate(format:"label == %@",loc),evaluatedWith:app.staticTexts["pageState"]);waitForExpectations(timeout:10)
     }
     func testPDFNavigation(){
-        let app=XCUIApplication();app.launch()
+        let app=launch()
         let c=app.buttons["cover-Ga nhỏ cuối chiều"];XCTAssertTrue(c.waitForExistence(timeout:20));c.tap()
         let state=app.staticTexts["pageState"]
         let begin=NSPredicate(format:"label == %@", "Trang 1 / 3")

@@ -119,12 +119,12 @@ struct Cabinet:View {
                 }.padding(.bottom,14)
                 HStack(alignment:.firstTextBaseline){ShelfHeader(title:"Tủ sách");Text("\(shelf.books.count) cuốn").font(.subheadline).foregroundStyle(Palette.muted).fixedSize()}.padding(.bottom,18)
                 if search{TextField("Tìm tên sách hoặc tác giả",text:$query).textFieldStyle(.roundedBorder).padding(.bottom,12)}
-                if let b=recent,filter == .all,query.isEmpty {
+                if let b=recent ?? shelf.books.first,filter == .all,query.isEmpty {
                     Button{shelf.open(b.id)}label:{
                         HStack(spacing:15){
                             BookCover(book:b,folder:shelf.folder(b.id)).frame(width:50)
                             VStack(alignment:.leading,spacing:4){
-                                Label("Đọc tiếp",systemImage:"bookmark.fill").font(.caption.weight(.semibold)).foregroundStyle(Color(bookHex:"#846038"))
+                                Label(b.opened == nil ? "Mở cuốn đầu tiên":"Đọc tiếp",systemImage:b.opened == nil ? "book":"bookmark.fill").font(.caption.weight(.semibold)).foregroundStyle(Color(bookHex:"#846038"))
                                 Text(b.title).font(.system(size:22,weight:.medium,design:.serif)).foregroundStyle(Palette.ink).lineLimit(1)
                                 Text(b.label(at:b.spot)).font(.caption).foregroundStyle(Palette.muted).lineLimit(1)
                             }

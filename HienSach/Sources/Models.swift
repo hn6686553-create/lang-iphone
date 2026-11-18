@@ -14,6 +14,7 @@ struct ReadingSpot: Codable, Equatable, Hashable {
     var fraction = 0.0
     var paragraph: Int?
     var fragment: String?
+    var findText: String?
 }
 
 struct Chapter: Codable, Equatable {

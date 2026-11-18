@@ -15,6 +15,13 @@ final class ReaderTests:XCTestCase{
         XCTAssertEqual(try BookImport.prepare(url,fileName:"another.epub",booksRoot:root).id,b.id)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:root.path),[b.id])
     }
+    func testSearchInEPUBAndPDF()throws{
+        for (file,ext,query,unit) in [("01-ben-o-cua","epub","hai ngon tay",0),("03-ga-nho","pdf","vé cũ",2)]{
+            let url=try seed(file,ext), b=try BookImport.prepare(url,fileName:url.lastPathComponent,booksRoot:root)
+            let hits=try FindInBook.passages(in:b,folder:root.appendingPathComponent(b.id),query:query)
+            XCTAssertTrue(hits.contains{$0.unit==unit},"Missing "+query)
+        }
+    }
     func testPDFPageCountOutlineAndCover()throws{
         let p=try seed("03-ga-nho","pdf");let b=try BookImport.prepare(p,fileName:"ga.pdf",booksRoot:root)
         XCTAssertEqual(b.kind,.pdf);XCTAssertEqual(b.pdfPages,3);XCTAssertEqual(b.title,"Ga nhỏ cuối chiều");XCTAssertNotNil(b.cover)

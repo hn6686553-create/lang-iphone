@@ -58,10 +58,21 @@
   function seek(s) {
     if(!frame||!options)return;
     const g=geometry(), f=Math.max(0,Math.min(1,Number(s.fraction)||0));
-    const el=s.fragment?document.getElementById(s.fragment):null;
-    if(el && flow.contains(el)){
+    const norm=t=>t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('vi');
+    let target=null;
+    if(s.findText){
+      const needle=norm(s.findText), walker=document.createTreeWalker(flow,NodeFilter.SHOW_TEXT);
+      let word;
+      while((word=walker.nextNode())){
+        const i=norm(word.nodeValue).indexOf(needle); if(i<0)continue;
+        const range=document.createRange(),start=Math.min(i,word.length),end=Math.min(word.length,i+s.findText.length);
+        range.setStart(word,start);range.setEnd(word,end);target=range;break;
+      }
+    }
+    const el=target||(s.fragment?document.getElementById(s.fragment):null);
+    if(el && (target||flow.contains(el))){
       const r=el.getBoundingClientRect(),v=frame.getBoundingClientRect();
-      if(options.paged)frame.scrollLeft=Math.round((frame.scrollLeft+r.left-v.left)/g.stride)*g.stride;
+      if(options.paged)frame.scrollLeft=Math.floor((frame.scrollLeft+r.left-v.left+1)/g.stride)*g.stride;
       else frame.scrollTop+=r.top-v.top;
     } else if(options.paged) frame.scrollLeft=Math.round(f*(g.pages-1))*g.stride;
     else frame.scrollTop=f*g.scroll;

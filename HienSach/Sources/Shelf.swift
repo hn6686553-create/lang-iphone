@@ -27,7 +27,13 @@ final class Shelf: ObservableObject {
     private var preserveIndex = false
 
     init(root: URL? = nil) {
-        let base = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("HienSach", isDirectory: true)
+        let basePath = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("HienSach", isDirectory: true)
+        #if DEBUG
+        let testFolder=ProcessInfo.processInfo.environment["HIENSACH_UI_TEST"].flatMap(UUID.init(uuidString:))
+        let base = testFolder.map{FileManager.default.temporaryDirectory.appendingPathComponent($0.uuidString)} ?? basePath
+        #else
+        let base=basePath
+        #endif
         self.root = base
         let index = base.appendingPathComponent("Index.json")
         var data = LibraryIndex()

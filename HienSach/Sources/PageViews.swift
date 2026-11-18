@@ -12,6 +12,7 @@ private let readerScript = (try? Bundle.main.url(forResource:"reader",withExtens
 private func locationData(_ spot: ReadingSpot) -> [String:Any] {
     var data:[String:Any] = ["fraction":spot.fraction]
     if let fragment=spot.fragment { data["fragment"]=fragment }
+    if let text=spot.findText { data["findText"]=text }
     if let p=spot.paragraph { data["paragraph"]=p }
     return data
 }

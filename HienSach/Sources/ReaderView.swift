@@ -62,7 +62,7 @@ struct ReaderView:View {
         .preferredColorScheme(options.paper == .night ? .dark:.light)
         .sheet(item:$panel){ item in
             if item == .appearance{ReadingSettings(isPDF:book.kind == .pdf).environmentObject(shelf)}
-            else{ContentsPanel(book:shelf.book(book.id) ?? book,current:spot,choose:{value in panel=nil;request=PageRequest(action:.jump(value))})}
+            else{ContentsPanel(book:shelf.book(book.id) ?? book,folder:shelf.folder(book.id),current:spot,choose:{value in panel=nil;request=PageRequest(action:.jump(value))})}
         }
         .confirmationDialog("Bạn đã tới cuối sách",isPresented:$showEnd,titleVisibility:.visible){
             Button("Đánh dấu đã đọc"){shelf.finish(book.id,true);dismiss()};Button("Đọc tiếp ở đây",role:.cancel){}
@@ -73,26 +73,41 @@ struct ReaderView:View {
 private struct PDFPaper:ViewModifier{
     let paper:Paper
     @ViewBuilder func body(content:Content)->some View{
-        if paper == .night{content.colorInvert().colorMultiply(Color(bookHex:"#E3DAC7"))}
-        else{content.colorMultiply(Color(bookHex:paper.background))}
+        content.overlay { Color.white.blendMode(.difference).opacity(paper == .night ? 1:0).allowsHitTesting(false).accessibilityHidden(true) }
+            .compositingGroup().colorMultiply(Color(bookHex:paper == .night ? "#E3DAC7":paper.background))
     }
 }
 private struct ContentsPanel:View {
     @Environment(\.dismiss) var dismiss
     let book:Book
+    let folder:URL
     let current:ReadingSpot
     let choose:(ReadingSpot)->Void
     @State private var pageJump=""
+    @State private var query=""
+    @State private var results:[Passage]=[]
+    @State private var finding=false
     var body:some View{
         NavigationStack{
             List{
+                if query.clean.count>=2 {
+                    Section("Kết quả trong sách"){
+                        if finding{ProgressView("Đang tìm…")}
+                        else if results.isEmpty{Text("Không tìm thấy đoạn có cụm từ này.").foregroundStyle(.secondary)}
+                        ForEach(results){r in
+                            Button{choose(.init(unit:r.unit,findText:r.query))}label:{
+                                VStack(alignment:.leading,spacing:4){Text(r.title).font(.headline);Text(r.excerpt).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)}
+                            }
+                        }
+                    }
+                }
                 if book.kind == .pdf{
                     HStack{
                         TextField("Trang 1–\(book.units)",text:$pageJump).keyboardType(.numberPad).accessibilityIdentifier("pageNumber")
                         Button("Đi tới"){if let n=Int(pageJump),(1...book.units).contains(n){choose(.init(unit:n-1))}}.disabled(!(1...book.units).contains(Int(pageJump) ?? 0))
                     }
                 }
-                if !book.contents.isEmpty{
+                if query.clean.count<2 && !book.contents.isEmpty{
                     Section("Trong cuốn sách"){
                         ForEach(Array(book.contents.enumerated()),id:\.offset){_,entry in
                             Button{choose(entry.spot)}label:{
@@ -102,7 +117,18 @@ private struct ContentsPanel:View {
                     }
                 }
                 if !book.ribbons.isEmpty{Section("Dấu trang"){ForEach(book.ribbons){m in Button{choose(m.spot)}label:{Label(m.label,systemImage:"bookmark")}}}}
-            }.navigationTitle("Mục lục").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Xong"){dismiss()}}}
+            }.searchable(text:$query,placement:.navigationBarDrawer(displayMode:.always),prompt:"Tìm chữ trong sách")
+                .task(id:query){
+                    results=[];let term=query.clean
+                    guard term.count>=2 else{finding=false;return};finding=true
+                    do{
+                        try await Task.sleep(nanoseconds:300_000_000)
+                        let b=book, f=folder
+                        let job=Task.detached(priority:.userInitiated){try FindInBook.passages(in:b,folder:f,query:term)}
+                        let found=try await withTaskCancellationHandler(operation:{try await job.value},onCancel:{job.cancel()})
+                        try Task.checkCancellation();results=found;finding=false
+                    }catch{if !Task.isCancelled{finding=false}}
+                }.navigationTitle("Mục lục").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Xong"){dismiss()}}}
         }.presentationDetents([.medium,.large])
     }
 }
