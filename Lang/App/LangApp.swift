@@ -40,6 +40,8 @@ private struct LangRoot: View {
                 HomeView(model: model, now: clock.date, onStart: { open(.start($0)) }, onList: { open(.list) })
             }
             .tabItem { Label("Tập trung", systemImage: "timer") }
+            HabitsView(model: model)
+                .tabItem { Label("Thói quen", systemImage: "bell") }
             RulesView(model: model, onRoutine: { open(.routine) },
                       onBudget: { open(.budget) }, onList: { open(.list) })
                 .tabItem { Label("Lịch chặn", systemImage: "calendar") }
@@ -59,6 +61,14 @@ private struct LangRoot: View {
             if $0 == AuthorizationCenter.shared.authorizationStatus { model.authorizationChanged($0) }
         }
         .onReceive(pulse) { now in if phase == .active { model.updateFromMonitor(at: now) } }
+        .safeAreaInset(edge: .top) {
+            if let issue = model.accessIssue {
+                HStack {
+                    Text(issue).font(.footnote)
+                    Button("Đóng") { model.accessIssue = nil }
+                }.padding(10).background(Ink.card)
+            }
+        }
         .sheet(item: $editor, onDismiss: resumeAfterPicker) { current in
             switch current {
             case .selection:
@@ -77,7 +87,7 @@ private struct LangRoot: View {
 
     @MainActor private func open(_ intent: Intent) {
         Task {
-            guard await model.requestAccess() else { return }
+            guard await model.requestBlockingAccess() else { return }
             if case .list = intent {
                 selectionIntent = .list
                 editor = .selection

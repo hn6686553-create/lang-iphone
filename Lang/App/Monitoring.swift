@@ -18,9 +18,10 @@ enum Registration {
     static func needed(for state: FocusState, at now: Date) -> [Registration] {
         guard state.selection.hasItems else { return [] }
         var result: [Registration] = []
-        if let session = state.active(at: now) { result.append(.session(session)) }
+        if let session = state.active(at: now), session.timerOnly != true { result.append(.session(session)) }
         if let routine = state.routine { result.append(.routine(routine)) }
         if let budget = state.budget { result.append(.budget(budget, state.selection)) }
+        result += (state.habits ?? []).filter(\.blocks).map { .routine($0.window) }
         return result
     }
 

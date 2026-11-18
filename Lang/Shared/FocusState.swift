@@ -6,6 +6,7 @@ struct FocusSession: Codable, Identifiable {
     let start: Date
     let plannedEnd: Date
     var stoppedAt: Date?
+    var timerOnly: Bool?
 
     init(minutes: Int, at now: Date) {
         id = UUID()
@@ -55,7 +56,15 @@ struct DailyBudget: Codable, Identifiable {
     }
 }
 
+struct Habit: Codable, Identifiable {
+    var id: UUID { window.id }
+    let title: String
+    let window: DailyWindow
+    let blocks: Bool
+}
+
 struct FocusState: Codable {
+    var habits: [Habit]?
     var selection = FamilyActivitySelection()
     var sessions: [FocusSession] = []
     var routine: DailyWindow?
@@ -84,8 +93,8 @@ struct FocusState: Codable {
 
     func reasons(at now: Date) -> Set<Reason> {
         var result: Set<Reason> = []
-        if active(at: now) != nil { result.insert(.session) }
-        if routine?.contains(now) == true { result.insert(.routine) }
+        if let session = active(at: now), session.timerOnly != true { result.insert(.session) }
+        if routine?.contains(now) == true || (habits ?? []).contains(where: { $0.blocks && $0.window.contains(now) }) { result.insert(.routine) }
         if budgetReached(at: now) { result.insert(.budget) }
         return result
     }
@@ -96,6 +105,7 @@ struct FocusState: Codable {
 
     mutating func deactivate(at now: Date) {
         endSession(at: now)
+        habits = habits?.map { Habit(title: $0.title, window: $0.window, blocks: false) }
         routine = nil
         budget = nil
         thresholdHits.removeAll()

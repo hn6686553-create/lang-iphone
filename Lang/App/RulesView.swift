@@ -170,3 +170,109 @@ struct RuleEditor: View {
         } catch { self.error = Notice(text: error.localizedDescription) }
     }
 }
+
+struct HabitsView: View {
+    @ObservedObject var model: FocusModel
+    @State private var adding = false
+
+    var body: some View {
+        Page(title: "Thói quen", now: Date()) {
+            PrimaryButton(title: "Tạo thói quen", icon: "plus") { adding = true }
+            ForEach(model.state.habits ?? []) { habit in
+                Panel {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(habit.title).font(.headline)
+                            Text("Hằng ngày · " + Viet.clock(habit.window.start) + " – " + Viet.clock(habit.window.end))
+                            Text(habit.blocks ? "Nhắc và chặn danh sách đã chọn" : "Nhắc bằng thông báo")
+                                .font(.footnote).foregroundStyle(Ink.muted)
+                        }
+                        Spacer()
+                        Button(role: .destructive) {
+                            do { try model.deleteHabit(habit) } catch { model.show(error) }
+                        } label: { Image(systemName: "trash") }.accessibilityLabel("Xóa " + habit.title)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $adding) { HabitEditor(model: model) }
+    }
+}
+
+private struct HabitEditor: View {
+    @ObservedObject var model: FocusModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var start = Date()
+    @State private var end = Date().addingTimeInterval(1800)
+    @State private var blocks = false
+    @State private var saving = false
+    @State private var issue: String?
+    @State private var picking = false
+    @State private var draft = FamilyActivitySelection()
+
+    private func minute(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Tên thói quen, ví dụ Đọc sách", text: $title)
+                DatePicker("Bắt đầu hằng ngày", selection: $start, displayedComponents: .hourAndMinute)
+                DatePicker("Kết thúc", selection: $end, displayedComponents: .hourAndMinute)
+                Toggle("Chặn ứng dụng trong giờ này", isOn: $blocks)
+                if blocks {
+                    Button("Chọn danh sách chặn chung") {
+                        Task {
+                            guard await model.requestBlockingAccess() else {
+                                issue = model.accessIssue ?? "Kiểm tra quyền chặn ứng dụng."
+                                return
+                            }
+                            draft = model.state.selection
+                            picking = true
+                        }
+                    }
+                    Text(model.state.selection.langSummary)
+                }
+                if let issue { Text(issue).foregroundStyle(.orange) }
+                Button("Lưu thói quen") {
+                    let window = DailyWindow(start: minute(start), end: minute(end))
+                    guard window.minutes >= 15 || (!blocks && window.minutes > 0) else {
+                        issue = "Chọn giờ kết thúc khác giờ bắt đầu. Lịch chặn cần ít nhất 15 phút."
+                        return
+                    }
+                    saving = true
+                    Task {
+                        defer { saving = false }
+                        do {
+                            try await model.addHabit(title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                                     window: window, blocks: blocks)
+                            dismiss()
+                        } catch { issue = error.localizedDescription }
+                    }
+                }.disabled(saving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .navigationTitle("Tạo thói quen")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Hủy") { dismiss() }.disabled(saving) } }
+            .interactiveDismissDisabled(saving)
+            .sheet(isPresented: $picking) {
+                NavigationStack {
+                    FamilyActivityPicker(selection: $draft)
+                        .navigationTitle("Danh sách chặn")
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) { Button("Hủy") { picking = false } }
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Lưu") {
+                                    picking = false
+                                    guard draft.hasItems else { issue = "Chọn ít nhất một mục."; return }
+                                    do { try model.saveSelection(draft) } catch { issue = error.localizedDescription }
+                                }
+                            }
+                        }
+                }
+            }
+        }
+    }
+}

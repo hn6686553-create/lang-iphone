@@ -22,13 +22,24 @@ enum FocusError: LocalizedError {
 enum FocusDisk {
     private static let shield = ManagedSettingsStore(named: ManagedSettingsStore.Name("lang.focus"))
 
+    static var sharedRoot: URL? {
+        guard let group = Bundle.main.object(forInfoDictionaryKey: "LangAppGroup") as? String,
+              let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group),
+              FileManager.default.isWritableFile(atPath: url.path) else { return nil }
+        return url
+    }
+
     /// App and monitor share a file lock. System registration calls stay outside this lock.
     @discardableResult
-    static func access(applyShield: Bool = false,
+    static func access(applyShield: Bool = false, allowLocal: Bool = false,
                        edit: ((inout FocusState) throws -> Void)? = nil) throws -> FocusState {
-        guard let group = Bundle.main.object(forInfoDictionaryKey: "LangAppGroup") as? String,
-              let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
-        else { throw FocusError.group }
+        let shared = sharedRoot
+        let root: URL
+        if let shared { root = shared }
+        else if allowLocal {
+            root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                               appropriateFor: nil, create: true)
+        } else { throw FocusError.group }
 
         let lockPath = root.appendingPathComponent("focus.lock").path
         let fd = lockPath.withCString { Darwin.open($0, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR) }
@@ -53,7 +64,7 @@ enum FocusDisk {
             let bytes = try JSONEncoder().encode(state)
             try bytes.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         }
-        if applyShield {
+        if applyShield && shared != nil {
             if state.shouldShield(at: Date()) {
                 let list = state.selection
                 shield.shield.applications = list.applicationTokens.isEmpty ? nil : list.applicationTokens

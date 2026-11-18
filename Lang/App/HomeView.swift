@@ -95,6 +95,9 @@ struct HomeView: View {
                     PrimaryButton(title: model.requesting ? "Đang xin quyền…" : "Bắt đầu \(minutes) phút",
                                   icon: "play.fill") { onStart(minutes) }
                         .disabled(model.requesting)
+                    Button("Chỉ chạy đồng hồ") {
+                        do { try model.startTimer(minutes: minutes) } catch { model.show(error) }
+                    }
                 }
             }
             .padding(18).frame(maxWidth: .infinity)
